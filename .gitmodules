@@ -1,0 +1,3 @@
+[submodule "tarantool"]
+	path = tarantool
+	url = git@github.com:tarantool/tarantool.git
