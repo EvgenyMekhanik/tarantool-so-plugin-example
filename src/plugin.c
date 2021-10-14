@@ -32,8 +32,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#define lengthof(array) (sizeof (array) / sizeof ((array)[0]))
-
 enum {
 	CFG_URI_OPTION_HOST = 0,
 	CFG_URI_OPTION_TRANSPORT = 1,
@@ -55,17 +53,43 @@ struct cfg_uri_array {
 	int size;
 };
 
-static int
-cfg_get_uri_array(struct lua_State *L, const char *param)
+struct cfg_uri_array *
+cfg_uri_array_new(const char *option_name)
 {
-	char buf[MAX_OPT_NAME_LEN];
-	snprintf(buf, MAX_OPT_NAME_LEN,
-		 "return box.internal.cfg_get_%s(box.cfg.%s)",
-		 param, param);
-	if (luaT_dostring(L, buf) != 0)
-		return -1;
+	fprintf(stderr, "cfg_uri_array_new\n");
+	return NULL;
+}
+
+void
+cfg_uri_array_delete(struct cfg_uri_array *uri_array)
+{
+	fprintf(stderr, "cfg_uri_array_delete\n");
+}
+
+int
+cfg_uri_array_size(const struct cfg_uri_array *uri_array)
+{
+	fprintf(stderr, "cfg_uri_array_size\n");
 	return 0;
 }
+
+const char *
+cfg_uri_array_get_uri(const struct cfg_uri_array *uri_array, int idx)
+{
+	fprintf(stderr, "cfg_uri_array_get_uri\n");
+	return NULL;
+}
+
+int
+cfg_uri_array_check_uri(const struct cfg_uri_array *uri_array,
+			int (*check_uri)(const char *, const char *),
+			const char *option_name)
+{
+	fprintf(stderr, "cfg_uri_array_check_uri\n");
+	return 0;
+}
+
+#if 0
 
 static int
 cfg_uri_get_option(struct lua_State *L, const char *name,
@@ -235,155 +259,11 @@ cfg_uri_array_check_impl(const struct cfg_uri_array *uri_array,
 	return 0;
 }
 
-static struct evio_service *
-iproto_service_array_new_impl(void)
-{
-	return evio_service_alloc(IPROTO_LISTEN_SOCKET_MAX);
-}
-
-static void
-iproto_service_array_delete_impl(struct evio_service *array)
-{
-	free(array);
-}
-
-static void
-iproto_service_array_init_impl(struct evio_service *array, size_t *size,
-			       struct ev_loop *loop, evio_accept_f on_accept,
-			       void *on_accept_param)
-{
-	for (int i = 0; i < IPROTO_LISTEN_SOCKET_MAX; i++) {
-		struct evio_service *service = evio_service_by_index(array, i);
-		evio_service_init(loop, service, "service",
-				  on_accept, on_accept_param);
-	}
-	*size = 0;
-}
-
-static const char *
-iproto_service_array_fill_listen_info_impl(struct evio_service *array,
-					   size_t size, char *buf)
-{
-	if (size == 0)
-		return NULL;
-	int cnt = 0;
-	char *p = buf;
-	const unsigned max = IPROTO_LISTEN_INFO_MAXLEN;
-	for (int i = 0; i < size; i++) {
-		/*
-		 * We write the listening addresses to the buffer,
-		 * separated by commas. After each write operation,
-		 * we shift the pointer by the number of bytes written.
-		 */
-		struct evio_service *service = evio_service_by_index(array, i);
-		cnt += evio_service_bound_address(p + cnt, service);
-		if (i != size - 1)
-			cnt += snprintf(p + cnt, max - cnt, ", ");
-	}
-	return buf;
-}
-
-static void
-iproto_service_array_attach_impl(struct evio_service *dst, size_t *dst_size,
-				 const struct evio_service *src,
-				 size_t src_size)
-{
-	for (int i = 0; i < src_size; i++) {
-		struct evio_service *d = evio_service_by_index(dst, i);
-		const struct evio_service *s =
-			evio_service_by_index((struct evio_service *)src, i);
-		evio_service_attach(d, s);
-	}
-	*dst_size = src_size;
-}
-
-static void
-iproto_service_array_detach_impl(struct evio_service *array, size_t *size)
-{
-	for (int i = 0; i < *size; i++) {
-		struct evio_service *service = evio_service_by_index(array, i);
-		evio_service_detach(service);
-	}
-	*size = 0;
-}
-
-static int
-iproto_service_array_check_listen_impl(struct evio_service *array,
-				       size_t size)
-{
-	for (int i = 0; i < size; i++) {
-		struct evio_service *service = evio_service_by_index(array, i);
-		if (evio_service_is_active(service))
-			return -1;
-	}
-	return 0;
-}
-
-static int
-iproto_service_array_start_listen_impl(struct evio_service *array,
-				       size_t size)
-{
-	for (int i = 0; i < size; i++) {
-		struct evio_service *service = evio_service_by_index(array, i);
-		if (evio_service_listen(service) != 0)
-			return -1;
-	}
-	return 0;
-}
-
-static void
-iproto_service_array_stop_listen_impl(struct evio_service *array,
-				      size_t *size)
-{
-	for (int i = 0; i < *size; i++) {
-		struct evio_service *service = evio_service_by_index(array, i);
-		evio_service_stop(service);
-	}
-	*size = 0;
-}
-
-static int
-iproto_service_array_bind_impl(struct evio_service *array, size_t *size,
-			       const struct cfg_uri_array *uri_array)
-{
-	int count = cfg_uri_array_size(uri_array);
-	assert(count < IPROTO_LISTEN_SOCKET_MAX);
-	for (*size = 0; *size < count; (*size)++) {
-		const char *uri = cfg_uri_array_get_uri(uri_array, *size);
-		struct evio_service *service =
-			evio_service_by_index(array, *size);
-		if (evio_service_bind(service, uri) != 0)
-			return -1;
-	}
-	return 0;
-}
-
 extern char normalize_uri_ee_lua[];
 
 int
 tt_plugin_entry(struct lua_State *L)
 {
-	cfg_uri_array_new = cfg_uri_array_new_impl;
-	cfg_uri_array_delete = cfg_uri_array_delete_impl;
-	cfg_uri_array_create = cfg_uri_array_create_impl;
-	cfg_uri_array_destroy = cfg_uri_array_destroy_impl;
-	cfg_uri_array_size = cfg_uri_array_size_impl;
-	cfg_uri_array_get_uri = cfg_uri_array_get_uri_impl;
-	cfg_uri_array_check = cfg_uri_array_check_impl;
-	iproto_service_array_new = iproto_service_array_new_impl;
-	iproto_service_array_delete = iproto_service_array_delete_impl;
-	iproto_service_array_init = iproto_service_array_init_impl;
-	iproto_service_array_fill_listen_info =
-		iproto_service_array_fill_listen_info_impl;
-	iproto_service_array_attach = iproto_service_array_attach_impl;
-	iproto_service_array_detach = iproto_service_array_detach_impl;
-	iproto_service_array_check_listen =
-		iproto_service_array_check_listen_impl;
-	iproto_service_array_start_listen =
-		iproto_service_array_start_listen_impl;
-	iproto_service_array_stop_listen =
-		iproto_service_array_stop_listen_impl;
-	iproto_service_array_bind = iproto_service_array_bind_impl;
 	char buf[MAX_OPT_NAME_LEN];
 	snprintf(buf, MAX_OPT_NAME_LEN,
 		 "return box.internal.change_template_cfg('listen', 'number, string, table')");
@@ -397,3 +277,5 @@ tt_plugin_entry(struct lua_State *L)
 	}
 	return 0;
 }
+
+#endif
